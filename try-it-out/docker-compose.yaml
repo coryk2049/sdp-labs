@@ -15,7 +15,7 @@ services:
       context: ./docker/jenkins
       dockerfile: Dockerfile
     ports:
-      - '8080:8080'
+      - 8080:8080
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /usr/local/bin/docker:/usr/local/bin/docker
@@ -47,10 +47,75 @@ services:
   sonar-scanner:
     networks:
       - sdp
-    container_name: sonar-scanner
+    container_name: sdp-sonar-scanner
     image: sdp/sonar-scanner:latest
     build:
       context: ./docker/sonar-scanner
       dockerfile: Dockerfile
     depends_on:
       - sonarqube
+  a11y:
+    networks:
+      - sdp
+    container_name: sdp-a11y
+    image: sdp/a11y:latest
+    build:
+      context: ./docker/a11y
+      dockerfile: Dockerfile
+    volumes:
+      - /mnt/a11y:/var/opt
+    depends_on:
+      - sonarqube
+  prom:
+    networks:
+      - sdp
+    container_name: sdp-prometheus
+    image: quay.io/prometheus/prometheus:v2.0.0
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command: "--config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus"
+    ports:
+     - 9090:9090
+    depends_on:
+     - exporter
+     - cadvisor
+    extra_hosts:
+      - "sdp-docker:172.17.0.1"
+  exporter:
+    networks:
+      - sdp
+    container_name: sdp-exporter
+    image: prom/node-exporter:latest
+    ports:
+      - 9100:9100
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--collector.filesystem.ignored-mount-points="^/(sys|proc|dev|host|etc)($$|/)"'
+  cadvisor:
+    networks:
+      - sdp
+    container_name: sdp-cadvisor  
+    image: google/cadvisor:latest
+    ports:
+      - 8081:8080
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro   
+  grafana:
+    networks:
+      - sdp
+    container_name: sdp-grafana
+    image: grafana/grafana:latest
+    ports:
+      - 3000:3000
+    depends_on:
+      - prom
+  

@@ -13,7 +13,7 @@ USER root
 RUN apt-get update \
 #   && apt-get install -y docker \
     && apt-get install -y libltdl-dev \
-    && groupadd -g 1000 docker \ 
+    && groupadd -g 999 docker \ 
     && usermod -aG docker jenkins
 
 # copy in custom common-workflow plugin
